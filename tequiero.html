@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TE QUIERO MOTEL // MANAGEMENT SYSTEM</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500&display=swap');
+
+        :root {
+            --hot-pink: #ff00bd;
+            --deep-purple: #2d0036;
+            --neon-blue: #00d2ff;
+            --vacant: #00ff41;
+            --occupied: #ff3131;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0a000c;
+            color: #eee;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Sidebar Estilo Motel */
+        #sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, var(--deep-purple) 0%, #000 100%);
+            border-right: 2px solid var(--hot-pink);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 15px rgba(255, 0, 189, 0.2);
+        }
+
+        .logo-area {
+            padding: 30px;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--hot-pink);
+            text-shadow: 0 0 10px var(--hot-pink);
+            border-bottom: 1px solid rgba(255, 0, 189, 0.3);
+        }
+
+        .nav-item {
+            padding: 20px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 189, 0.1);
+            color: var(--neon-blue);
+            padding-left: 30px;
+        }
+
+        /* Main Content */
+        #main-content { flex-grow: 1; padding: 30px; overflow-y: auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--neon-blue);
+            padding-bottom: 10px;
+        }
+
+        .floor-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .floor-title {
+            grid-column: span 4;
+            color: var(--hot-pink);
+            font-size: 1.5rem;
+            margin-top: 20px;
+            border-left: 4px solid var(--hot-pink);
+            padding-left: 10px;
+        }
+
+        .room-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .room-number { font-size: 1.4rem; font-weight: bold; display: block; }
+        .status-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
+        
+        .vacant { color: var(--vacant); border: 1px solid var(--vacant); }
+        .occupied { color: var(--occupied); border: 1px solid var(--occupied); }
+        .target-room { border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); }
+
+        /* Modal de Vídeo */
+        #video-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+
+        video {
+            width: 80%;
+            max-width: 1000px;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        .close-video {
+            margin-top: 20px;
+            background: var(--hot-pink);
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            cursor: pointer;
+            font-family: 'Orbitron';
+        }
+
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="logo-area">
+            <h1>TE QUIERO</h1>
+            <small>MOTEL & SPA</small>
+        </div>
+        <div class="nav-item">DASHBOARD</div>
+        <div class="nav-item">RECEPÇÃO</div>
+        <div class="nav-item" style="color: var(--neon-blue)">MAPA DE QUARTOS</div>
+        <div class="nav-item">FINANCEIRO</div>
+        <div class="nav-item">LOGS DE ACESSO</div>
+    </div>
+
+    <div id="main-content">
+        <header>
+            <div>SISTEMA DE VIGILÂNCIA // NÓ: TQ-MOTEL-04</div>
+            <div style="color: var(--hot-pink)">USER: NIGHT_CLERK_01</div>
+        </header>
+
+        <div id="room-map">
+            </div>
+    </div>
+
+    <div id="video-overlay">
+        <h2 style="color: var(--neon-blue)" class="blink">REC // CAM_SUITE_1004 // LIVE FEED</h2>
+        <video id="security-video" controls>
+            <source src="camera_1004.webm" type="video/webm">
+            Seu navegador não suporta vídeos.
+        </video>
+        <button class="close-video" onclick="closeVideo()">FECHAR ACESSO</button>
+    </div>
+
+    <script>
+        const roomMap = document.getElementById('room-map');
+
+        function generateRooms() {
+            let html = '';
+            for (let f = 1; f <= 10; f++) {
+                html += `<div class="floor-title">ANDAR ${f}</div><div class="floor-grid">`;
+                for (let r = 1; r <= 4; r++) {
+                    const roomNum = (f * 100) + r;
+                    let status = Math.random() > 0.5 ? 'VACANT' : 'OCCUPIED';
+                    let statusClass = status.toLowerCase();
+                    let guest = "";
+                    let onclick = "";
+                    let specialClass = "";
+
+                    // Lógica para o quarto do alvo
+                    if (roomNum === 1004) {
+                        status = "OCCUPIED";
+                        statusClass = "occupied";
+                        guest = "<br><small>JAX / CARLA</small>";
+                        specialClass = "target-room";
+                        onclick = "onclick='openVideo()'";
+                    }
+
+                    html += `
+                        <div class="room-card ${specialClass}" ${onclick} style="${roomNum === 1004 ? 'cursor:pointer' : ''}">
+                            <span class="room-number">${roomNum}</span>
+                            <span class="status-badge ${statusClass}">${status}</span>
+                            ${guest}
+                            ${roomNum === 1004 ? '<br><small style="color:var(--neon-blue)">[VER CÂMERA]</small>' : ''}
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            }
+            roomMap.innerHTML = html;
+        }
+
+        function openVideo() {
+            document.getElementById('video-overlay').style.display = 'flex';
+            document.getElementById('security-video').play();
+        }
+
+        function closeVideo() {
+            document.getElementById('video-overlay').style.display = 'none';
+            document.getElementById('security-video').pause();
+        }
+
+        generateRooms();
+    </script>
+</body>
+</html>

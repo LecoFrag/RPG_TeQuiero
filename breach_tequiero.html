@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>BREACH PROTOCOL // TE QUIERO</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --bg-color: #0d0005;
+            --primary: #ff0055;
+            --secondary: #f2c94c;
+            --dim: #4a1a2b;
+            --highlight: #00ff99;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary);
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #game-container {
+            display: none; 
+            gap: 50px;
+            z-index: 20;
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        #matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 50px);
+            grid-gap: 5px;
+        }
+
+        .cell {
+            width: 50px; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .cell:hover { background-color: var(--dim); }
+        .active-zone { border-color: var(--secondary); color: var(--secondary); box-shadow: 0 0 5px var(--secondary); }
+        .selected { background-color: var(--primary); color: black; border-color: var(--primary); }
+
+        #info-panel { width: 300px; display: flex; flex-direction: column; justify-content: space-between; }
+        h2 { margin: 0 0 10px 0; border-bottom: 2px solid var(--primary); font-size: 1.5rem; }
+        .sequence-box { margin-bottom: 30px; }
+        .seq-row { display: flex; gap: 10px; font-size: 1.5rem; margin-top: 10px; color: var(--secondary); }
+        .buffer-box { margin-bottom: 30px; }
+        .buffer-slots { display: flex; gap: 5px; margin-top: 10px; }
+        .slot { width: 35px; height: 35px; border: 1px solid var(--dim); display: flex; align-items: center; justify-content: center; }
+        #timer { font-size: 2rem; color: var(--primary); text-align: right; }
+
+        /* SCREENS */
+        .full-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 0, 5, 0.98);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100;
+            text-align: center;
+        }
+        
+        .hidden { display: none !important; }
+        .big-text { font-size: 3rem; margin-bottom: 20px; text-shadow: 0 0 10px currentColor; }
+        .sub-text { font-size: 1.5rem; margin-bottom: 30px; color: var(--secondary); }
+        .attempts-display { font-size: 1.2rem; margin-top: 10px; border: 1px solid var(--primary); padding: 5px 15px; }
+
+        #password-reveal { font-size: 2rem; color: var(--highlight); border: 2px dashed var(--highlight); padding: 20px; margin-bottom: 20px; }
+        
+        button {
+            background: var(--primary); border: none; padding: 15px 30px;
+            font-family: inherit; font-size: 1.5rem; cursor: pointer; margin-top: 20px;
+            box-shadow: 0 0 15px var(--primary); color: white;
+        }
+        button:hover { background: white; color: black; }
+        button:disabled { background: #333; color: #555; box-shadow: none; cursor: not-allowed; }
+
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+
+    <div id="start-screen" class="full-overlay">
+        <div class="big-text">WARNING: ICE DETECTED</div>
+        <div class="sub-text">PROTOCOLO DE QUEBRA DE CRIPTOGRAFIA NECESSÁRIO.</div>
+        <div class="attempts-display">TENTATIVAS: <span id="start-attempts">3</span></div>
+        <button onclick="startGameFlow()">INICIAR BREACH</button>
+    </div>
+
+    <div id="lockout-screen" class="full-overlay hidden">
+        <div class="big-text" style="color:red">SYSTEM LOCKED</div>
+        <div class="sub-text">SUA ASSINATURA FOI RASTREADA.</div>
+        <div class="attempts-display">TENTATIVAS: 0</div>
+    </div>
+
+    <div id="game-container">
+        <div>
+            <h2>CODE_MATRIX</h2>
+            <div id="matrix-grid"></div>
+        </div>
+        <div id="info-panel">
+            <div>
+                <div class="sequence-box">
+                    <h2>ALVO (REQUIRED)</h2>
+                    <div id="target-seq" class="seq-row"></div>
+                </div>
+                <div class="buffer-box">
+                    <h2>BUFFER (MEMORY)</h2>
+                    <div id="buffer" class="buffer-slots"></div>
+                </div>
+            </div>
+            <div>
+                <h2>TIMER</h2>
+                <div id="timer">45.00</div>
+            </div>
+            <div style="margin-top:20px; border-top: 1px solid #333; padding-top:10px;">
+                ATTEMPTS: <span id="game-attempts-val">3</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="end-screen" class="full-overlay hidden">
+        <div id="result-msg" class="big-text"></div>
+        <div id="password-reveal" style="display:none;">
+            SENHA DA CRIPTOGRAFIA:<br>
+            <span style="font-size: 3rem; font-weight: bold;">CORAZON</span>
+        </div>
+        <div id="fail-options">
+            <div class="sub-text">FALHA NA SINCRONIZAÇÃO.</div>
+            <button id="retry-btn" onclick="retryGame()">TENTAR NOVAMENTE</button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO
+        const hexChars = ['1C', 'BD', '55', 'E9', '7A', 'FF'];
+        const gridSize = 7;
+        const seqLength = 5; 
+        const bufferSize = 8;
+        
+        // VARIÁVEIS DE SESSÃO (Reseta ao atualizar a página)
+        let attemptsLeft = 3; 
+
+        let grid = [];
+        let target = [];
+        let buffer = [];
+        let activeRow = 0;
+        let activeCol = null;
+        let isRowTurn = true; 
+        let gameOver = false;
+        let timer = 45.00;
+        let timerInterval;
+
+        const startScreen = document.getElementById('start-screen');
+        const lockoutScreen = document.getElementById('lockout-screen');
+        const endScreen = document.getElementById('end-screen');
+        const gameContainer = document.getElementById('game-container');
+        
+        const gridEl = document.getElementById('matrix-grid');
+        const targetEl = document.getElementById('target-seq');
+        const bufferEl = document.getElementById('buffer');
+        const timerEl = document.getElementById('timer');
+        const resultMsg = document.getElementById('result-msg');
+        const passReveal = document.getElementById('password-reveal');
+        const failOptions = document.getElementById('fail-options');
+        const startAttemptsDisplay = document.getElementById('start-attempts');
+        const gameAttemptsVal = document.getElementById('game-attempts-val');
+
+        function startGameFlow() {
+            startScreen.classList.add('hidden');
+            gameContainer.style.display = 'flex';
+            initGame();
+        }
+
+        function retryGame() {
+            // Esconde tela final e reinicia o jogo, mantendo a contagem de tentativas atual
+            endScreen.classList.add('hidden');
+            initGame();
+        }
+
+        function initGame() {
+            gameAttemptsVal.innerText = attemptsLeft;
+            
+            // Reset de variáveis de jogo
+            gameOver = false;
+            buffer = [];
+            timer = 45.00;
+            activeRow = 0;
+            activeCol = null;
+            isRowTurn = true;
+
+            // 1. Gera Target
+            target = [];
+            for(let i=0; i<seqLength; i++) {
+                target.push(hexChars[Math.floor(Math.random() * hexChars.length)]);
+            }
+            renderTarget();
+
+            // 2. Cria Grid
+            grid = [];
+            for(let r=0; r<gridSize; r++) {
+                let rowData = [];
+                for(let c=0; c<gridSize; c++) {
+                    rowData.push({ hex: null, used: false, r: r, c: c, isPath: false });
+                }
+                grid.push(rowData);
+            }
+
+            // Planta o caminho da vitória
+            let currentRow = 0;
+            let currentCol = Math.floor(Math.random() * gridSize);
+            grid[currentRow][currentCol].hex = target[0];
+            grid[currentRow][currentCol].isPath = true;
+
+            let pathRow = currentRow;
+            let pathCol = currentCol;
+            let pathRowTurn = false; 
+
+            for (let i = 1; i < seqLength; i++) {
+                if (pathRowTurn) {
+                    let newCol;
+                    do { newCol = Math.floor(Math.random() * gridSize); } while (newCol === pathCol || grid[pathRow][newCol].isPath);
+                    pathCol = newCol;
+                } else {
+                    let newRow;
+                    do { newRow = Math.floor(Math.random() * gridSize); } while (newRow === pathRow || grid[newRow][pathCol].isPath);
+                    pathRow = newRow;
+                }
+                grid[pathRow][pathCol].hex = target[i];
+                grid[pathRow][pathCol].isPath = true;
+                pathRowTurn = !pathRowTurn;
+            }
+
+            // Preenche e Renderiza Grid
+            gridEl.innerHTML = '';
+            for(let r=0; r<gridSize; r++) {
+                for(let c=0; c<gridSize; c++) {
+                    if (!grid[r][c].hex) grid[r][c].hex = hexChars[Math.floor(Math.random() * hexChars.length)];
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.innerText = grid[r][c].hex;
+                    cell.id = `cell-${r}-${c}`;
+                    cell.onclick = () => handleInput(r, c);
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            bufferEl.innerHTML = '';
+            for(let i=0; i<bufferSize; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                bufferEl.appendChild(slot);
+            }
+
+            highlightZone();
+            startTimer();
+        }
+
+        function highlightZone() {
+            document.querySelectorAll('.active-zone').forEach(el => el.classList.remove('active-zone'));
+            for(let i=0; i<gridSize; i++) {
+                let cellId = isRowTurn ? `cell-${activeRow}-${i}` : `cell-${i}-${activeCol}`;
+                let cellData = isRowTurn ? grid[activeRow][i] : grid[i][activeCol];
+                if(!cellData.used) document.getElementById(cellId).classList.add('active-zone');
+            }
+        }
+
+        function handleInput(r, c) {
+            if(gameOver) return;
+            const cell = grid[r][c];
+            if(cell.used) return;
+            if(isRowTurn && r !== activeRow) return;
+            if(!isRowTurn && c !== activeCol) return;
+
+            cell.used = true;
+            document.getElementById(`cell-${r}-${c}`).classList.add('selected');
+            document.getElementById(`cell-${r}-${c}`).classList.remove('active-zone');
+            
+            buffer.push(cell.hex);
+            const slots = document.querySelectorAll('.slot');
+            slots[buffer.length - 1].innerText = cell.hex;
+
+            if(isRowTurn) { activeCol = c; activeRow = null; } 
+            else { activeRow = r; activeCol = null; }
+            isRowTurn = !isRowTurn;
+
+            highlightZone();
+            checkWinCondition();
+        }
+
+        function checkWinCondition() {
+            const bufferStr = buffer.join('');
+            const targetStr = target.join('');
+            if(bufferStr.includes(targetStr)) {
+                endGame(true);
+            } else if (buffer.length >= bufferSize) {
+                endGame(false);
+            }
+        }
+
+        function startTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timer -= 0.1;
+                timerEl.innerText = timer.toFixed(2);
+                if(timer <= 0) endGame(false);
+            }, 100);
+        }
+
+        function endGame(win) {
+            gameOver = true;
+            clearInterval(timerInterval);
+            endScreen.classList.remove('hidden');
+
+            if(win) {
+                resultMsg.innerText = "UPLOAD COMPLETO";
+                resultMsg.style.color = "#00ff99";
+                passReveal.style.display = "block";
+                failOptions.style.display = "none";
+            } else {
+                attemptsLeft--;
+                gameAttemptsVal.innerText = attemptsLeft;
+                
+                resultMsg.innerText = "FALHA DE PROTOCOLO";
+                resultMsg.style.color = "#ff0055";
+                passReveal.style.display = "none";
+                failOptions.style.display = "block";
+
+                if (attemptsLeft <= 0) {
+                   endScreen.classList.add('hidden');
+                   gameContainer.style.display = 'none';
+                   lockoutScreen.classList.remove('hidden');
+                }
+            }
+        }
+
+        function renderTarget() {
+            targetEl.innerHTML = '';
+            target.forEach(hex => {
+                const div = document.createElement('div');
+                div.innerText = hex;
+                targetEl.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>

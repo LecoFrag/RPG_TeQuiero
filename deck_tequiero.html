@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZETATECH PORTABLE DECK v9.0</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            background-color: #020202;
+            color: #33ff00;
+            font-family: 'VT323', monospace;
+            font-size: 1.4rem;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Scanlines para efeito retro */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* A MOLDURA DO MONITOR */
+        #monitor-frame {
+            width: 900px;
+            height: 80vh;
+            background-color: rgba(10, 20, 10, 0.95);
+            border: 2px solid #33ff00;
+            border-radius: 10px;
+            box-shadow: 
+                0 0 20px rgba(51, 255, 0, 0.2),
+                inset 0 0 50px rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 5;
+        }
+
+        /* Cabeçalho do Monitor */
+        #monitor-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #33ff00;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        /* Área de Texto Rolável */
+        #terminal-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* ESTILOS DE TEXTO */
+        .user-command-block {
+            color: #ffffff;
+            margin-top: 25px;
+            margin-bottom: 5px;
+            border-left: 3px solid #00ffff;
+            padding-left: 10px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        .system-response-block {
+            color: #33ff00;
+            margin-left: 15px;
+            margin-bottom: 10px;
+            line-height: 1.2;
+            opacity: 0.9;
+        }
+
+        /* Input Fixo no fundo */
+        .input-area {
+            display: flex;
+            align-items: center;
+            border-top: 1px dashed #33ff00;
+            padding-top: 15px;
+        }
+
+        .prompt { color: #00ffff; margin-right: 10px; font-weight: bold; }
+
+        input {
+            background: transparent; border: none; color: #fff;
+            font-family: 'VT323', monospace; font-size: 1.5rem;
+            width: 100%; outline: none;
+        }
+
+        /* Cores de Status */
+        .error { color: #ff5555; }
+        .success { color: #55ff55; font-weight: bold; }
+        .warn { color: #ffff55; }
+        .info { color: #55ffff; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #001100; }
+        ::-webkit-scrollbar-thumb { background: #33ff00; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+
+    <div id="monitor-frame">
+        <div id="monitor-header">
+            <span>ZETATECH PARALINE v9.0</span>
+            <span id="connection-status">NET: LOCAL_MESH_ONLY</span>
+            <span>BAT: 89%</span>
+        </div>
+
+        <div id="terminal-window">
+            <div class="system-response-block">
+                ZETATECH OS [BOOT SEQUENCE COMPLETE]<br>
+                Kernel loaded... OK<br>
+                Interface drivers... OK<br>
+                <br>
+                Ready for input. Type 'help' for instructions.
+            </div>
+        </div>
+
+        <div class="input-area">
+            <span class="prompt">runner@NC_Grid:~$</span>
+            <input type="text" id="cmd-input" autocomplete="off" autofocus>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('cmd-input');
+        const terminalWindow = document.getElementById('terminal-window');
+        let currentTarget = null;
+
+        // === CONFIGURAÇÃO DOS ALVOS ===
+        const networks = {
+            '192.168.66.15': { name: 'TE_QUIERO_MOTEL', url: 'tequiero.html', key: 'corazon' }
+        };
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const text = input.value.trim();
+                if (text) {
+                    printUserCommand(text);
+                    processCommand(text);
+                }
+                input.value = '';
+                scrollToBottom();
+            }
+        });
+
+        function scrollToBottom() {
+            terminalWindow.scrollTop = terminalWindow.scrollHeight;
+        }
+
+        function printUserCommand(text) {
+            const div = document.createElement('div');
+            div.className = 'user-command-block';
+            div.textContent = `>> ${text}`;
+            terminalWindow.appendChild(div);
+        }
+
+        function printSystemResponse(htmlText, type = '') {
+            const div = document.createElement('div');
+            div.className = 'system-response-block';
+            if (type) div.classList.add(type);
+            div.innerHTML = htmlText;
+            terminalWindow.appendChild(div);
+            scrollToBottom();
+        }
+
+        function processCommand(cmdStr) {
+            const args = cmdStr.toLowerCase().split(' ');
+            const cmd = args[0];
+
+            // Delay simulado para realismo
+            setTimeout(() => {
+                switch(cmd) {
+                    case 'help':
+                        printSystemResponse(`
+                            AVAILABLE COMMANDS:<br>
+                            ------------------<br>
+                            scan           - Scan local frequencies for Access Points<br>
+                            connect [IP]   - Initiate handshake with target Node<br>
+                            breach         - Launch Breach Protocol UI to find Key (Minigame)<br>
+                            crack [KEY]    - Execute brute-force using a decrypted Key<br>
+                            clear          - Flush terminal screen<br>
+                        `, 'info');
+                        break;
+
+                    case 'clear':
+                        terminalWindow.innerHTML = '';
+                        break;
+
+                    case 'scan':
+                        printSystemResponse("Scanning local frequencies...", "info");
+                        setTimeout(() => {
+                            let results = "<span class='warn'>[!] SIGNALS DETECTED:</span><br>";
+                            for (let ip in networks) {
+                                results += `&nbsp;&nbsp;[IP: ${ip}] :: SSID: ${networks[ip].name}<br>`;
+                            }
+                            printSystemResponse(results);
+                        }, 800);
+                        break;
+
+                    case 'connect':
+                        const ip = args[1];
+                        if (networks[ip]) {
+                            currentTarget = networks[ip];
+                            printSystemResponse(`Target Locked: [${currentTarget.name}]<br>Initiating Handshake...`, "info");
+                            setTimeout(() => {
+                                printSystemResponse(`
+                                    <span class='error'>[X] ACCESS DENIED by Black ICE.</span><br>
+                                    Security Level: HIGH<br>
+                                    Decryption Key Required.<br>
+                                    Use command: <strong>breach</strong> to decrypt key.
+                                `);
+                            }, 1000);
+                        } else {
+                            printSystemResponse("ERROR: Target IP not found or signal too weak.", "error");
+                        }
+                        break;
+
+                    case 'breach':
+                        if (!currentTarget) {
+                            printSystemResponse("ERROR: No target locked. Connect to an IP first.", "error");
+                            return;
+                        }
+                        
+                        // Seleciona o arquivo correto do minigame
+                        let breachFile = '';
+                        if (currentTarget.key === 'corazon') {
+                            breachFile = 'breach_tequiero.html';
+                        } else if (currentTarget.key === 'corazon') {
+                            breachFile = 'breach_tequiero.html';
+                        }
+
+                        if (breachFile) {
+                            printSystemResponse("INITIATING BREACH PROTOCOL UI...", "warn");
+                            printSystemResponse("OPENING EXTERNAL DECRYPTION TOOL...", "info");
+                            
+                            // Abre o minigame em nova aba
+                            setTimeout(() => {
+                                window.open(breachFile, '_blank');
+                            }, 1000);
+                            
+                            printSystemResponse(">> SOLVE THE MATRIX TO RETRIEVE KEY.<br>THEN USE 'crack [KEY]'.", "success");
+                        }
+                        break;
+
+                    case 'crack':
+                        if (!currentTarget) {
+                            printSystemResponse("ERROR: No target locked. Connect to an IP first.", "error");
+                            return;
+                        }
+                        const key = args[1];
+                        if (key === currentTarget.key) {
+                            runHackingAnimation(currentTarget.url);
+                        } else {
+                            printSystemResponse("PASSWORD INCORRECT.<br>Warning: Trace attempt detected (25%)", "error");
+                        }
+                        break;
+
+                    default:
+                        printSystemResponse(`Command '${cmd}' not recognized. Type 'help'.`, "error");
+                }
+            }, 200);
+        }
+
+        function runHackingAnimation(url) {
+            printSystemResponse("KEY ACCEPTED. INJECTING PAYLOAD...", "success");
+            
+            let percent = 0;
+            const interval = setInterval(() => {
+                percent += 20;
+                printSystemResponse(`Bypassing Firewall... ${percent}%`);
+                scrollToBottom();
+
+                if(percent >= 100) {
+                    clearInterval(interval);
+                    printSystemResponse("ACCESS GRANTED. ESTABLISHING VISUAL LINK...", "success");
+                    setTimeout(() => {
+                        window.location.href = url;
+                    }, 1500);
+                }
+            }, 300);
+        }
+    </script>
+</body>
+</html>
